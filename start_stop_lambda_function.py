@@ -1,0 +1,19 @@
+# cronjob-lambda/start_stop_lambda_function.py
+
+import boto3
+region = 'us-east-2'
+# instance IDs involved in the operation
+instances = ['i-0d55c8da968017c96']
+ec2 = boto3.client('ec2', region_name=region)
+def lambda_handler(event, context):
+    if 'operation' in event:
+        if event['operation'] == 'start':
+            ec2.start_instances(InstanceIds=instances)
+            print('started your instances: ' + str(instances))
+        elif event['operation'] == 'stop':
+            ec2.stop_instances(InstanceIds=instances)
+            print('stopped your instances: ' + str(instances))
+        else:
+            print('No operation matched')
+    else:
+        print('No operation detected')
