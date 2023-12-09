@@ -2,5 +2,4 @@
 
 cd <folder name>
 ls -la
-mkdir
 cp <> <>
