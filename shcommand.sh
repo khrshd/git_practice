@@ -3,3 +3,6 @@
 cd <folder name>
 ls -la
 cp <> <>
+
+ll
+rm
