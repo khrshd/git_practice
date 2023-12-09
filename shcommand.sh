@@ -2,7 +2,10 @@
 
 cd <folder name>
 ls -la
-cp <> <>
+cp <file-to-copy> <where-to-copy>
 
 ll
 rm
+
+less
+tail-f
