@@ -1,5 +1,5 @@
 # git_practice
-This is the git repo for practice
+made change in the mainn branch
 
 ## Dev
 - This is my line 1
