@@ -6,3 +6,5 @@ This is the git repo for practice
 - This is my line 2
 
 - Adding another line for the next commit
+- Line 4
+- Line 5 is there
