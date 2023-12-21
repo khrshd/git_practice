@@ -1,3 +1,3 @@
-output "ec2-id" {
+#output "ec2-id" {
 
 

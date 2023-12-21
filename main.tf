@@ -65,23 +65,32 @@ resource "aws_iam_role" "lambda_role" {
 ###--- EC2 instance ---###
 
 resource "aws_instance" "tch_instance" {
-	ami             = "ami-06d4b7182ac3480fa" 
+	#arn 			= aws_key_pair.tf_ec2_key-pair.arn
+	#arn				= arn:aws:ec2:us-east-2:528736153640:key-pair/mykeyforclass
+	ami             = "ami-0ef50c2b2eb330511" 
 	instance_type   = "t2.micro"
+	key_name 		= "tf_ec2_key-pair"
+
+	#attach arn of the key here
 	#subnet_id       = aws_subnet.tch_subnet.id
+
+	tags_all                             = {
+        "Name" = "ansible-host"
+        }
   }
 
 ###--- Authentication: AWS key-pair ---###
 
-resource "aws_key_pair" "tf_ec2_key-pair" {                                                               
-	key_name = "tf_ec2-key"
-	public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCISD+BixbcVT0q77oqNq9E8M4xAtCJTgiBK7X0MEPCW1eJdetJKx4VRUBCI1UUZkBODZw0bw3zTotGsL12izw0/SA74Au9WT3kL0SDucm0pX6QZOx984VyfrviuzAWJNDtWbd/Ue3MLEWaPHXbg2XEYbBp4tfXN4RDfVrpSJHxsg6niySrM9x33tpNCxNT0633xqvapUgO3b3BKKymE4H+mWLrKzGrAzvmB8IaTnFRwAantMwrYLv5QLp5K9VNN1tBWdhXkvL81v/5GPbqjFWrxWUKAIdBteSuo8MuK76EIHIF//coexdgm7NNlZsJfjZC2i2Od+V3fZD1uqovJf+3iCUT+4G0LwMP2EwztsTNJiYIE/g/k/n1KDd7KLp5J9+oej1Ln4ghY7tcRFBeRDmHSldcsct8xQxOqryatKSUKB8AVVxLSWeYg5lINrBQXmEz+sShA41uzMLNyOdSOHTqG932W3GJ9W/44JoFgLlJ1neX9ALJOXsL3L9JG2VukKs= ec2-user@ip-172-31-41-90.us-east-2.compute.internal"            
-  }
+#resource "aws_key_pair" "tf_ec2_key-pair" {                                                               
+#	key_name = "tf_ec2_key-pair"
+#	public_key = "ssh-rsa AAAAEAAAattT...tjqA/haSsAdSy1qNCTDKrM1vQahJ29kNcPId1+XMqSr/gVN5BAdDhTWQxMHC7DKnVh7JhFrdXYZhknPOKHZr8hG+peSjL7TwkRSLwsFfPAURwNdTv8nUCZGxwlZAKs26BlRrmK6RsG4ioKcGpj06gte08w1cmxsX8OvKkDVGwMtIPNbiPLTzX9ReioU4BeLv"            
+#  }
 
 ###--- Lambda function ---###
 
 data "archive_file" "python_code" {
     type        = "zip"
-    source_dir  = "${path.module}/cronjob-lambda/"
+    source_dir  = "${path.module}/py_code/"
     output_path = "${path.module}/cronjob-lambda/start_stop_lambda_function.zip"
 }
 resource "aws_lambda_function" "lambda-start-stop-ec2" {
@@ -92,39 +101,23 @@ resource "aws_lambda_function" "lambda-start-stop-ec2" {
     runtime                        = "python3.9"
 }
 
-
-###--- Cloud watch ---###
-
-resource "aws_cloudwatch_event_rule" "schedule_rule" {
-	name        = "ec2-instance-nonprod-start-stop"
-	description = "Schedule rule to trigger Lambda at specific times"
-  
-	schedule_expression = "cron(45 21 * * ? *)" # Adjust the schedule expression for 9 AM and 9 PM IST #GMT timze zone
-  }
-  
-  resource "aws_cloudwatch_event_target" "schedule_target" {
-	rule      = aws_cloudwatch_event_rule.schedule_rule.name
-	target_id = "ec2-instance-nonprod-start-stop"
-  
-	arn = aws_lambda_function.lambda-start-stop-ec2.arn
-  }
-
-
 ###--- EventBridge ---###
+## Tue,Thu rule
 
-resource "aws_cloudwatch_event_rule" "cw-rule-start-ec2" {
-    name = "cw-rule-start-ec2"
+resource "aws_cloudwatch_event_rule" "cwt-rule-start-ec2" {
+    name = "cwTT-rule-start-ec2"
     description = "Trigger Lambda function to start EC2 instances"
-    schedule_expression = "cron(40 21 * * ? *)"
+    schedule_expression = "cron(00 22 ? * Tue,Thu *)"
 }
-resource "aws_cloudwatch_event_rule" "cw-rule-stop-ec2" {
-    name = "cw-rule-stop-ec2"
+resource "aws_cloudwatch_event_rule" "cwt-rule-stop-ec2" {
+    name = "cwTT-rule-stop-ec2"
     description = "Trigger Lambda function to stop EC2 instances"
-    schedule_expression = "cron(55 21 * * ? *)"
+    schedule_expression = "cron(00 02 ? * Tue,Thu *)"
 }
+
 resource "aws_cloudwatch_event_target" "lambda-start-ec2" {
     arn = aws_lambda_function.lambda-start-stop-ec2.arn
-    rule = aws_cloudwatch_event_rule.cw-rule-start-ec2.name
+    rule = aws_cloudwatch_event_rule.cwt-rule-start-ec2.name
     input = <<JSON
     {
         "operation":"start"
@@ -133,7 +126,7 @@ JSON
 }
 resource "aws_cloudwatch_event_target" "lambda-stop-ec2" {
     arn = aws_lambda_function.lambda-start-stop-ec2.arn
-    rule = aws_cloudwatch_event_rule.cw-rule-stop-ec2.name
+    rule = aws_cloudwatch_event_rule.cwt-rule-stop-ec2.name
     input = <<JSON
     {
         "operation":"stop"
@@ -144,11 +137,55 @@ resource "aws_lambda_permission" "start-permission" {
     action = "lambda:InvokeFunction"
     function_name = aws_lambda_function.lambda-start-stop-ec2.arn
     principal = "events.amazonaws.com"
-    source_arn = aws_cloudwatch_event_rule.cw-rule-start-ec2.arn
+    source_arn = aws_cloudwatch_event_rule.cwt-rule-start-ec2.arn
 }
 resource "aws_lambda_permission" "stop-permission" {
     action = "lambda:InvokeFunction"
     function_name = aws_lambda_function.lambda-start-stop-ec2.arn
     principal = "events.amazonaws.com"
-    source_arn = aws_cloudwatch_event_rule.cw-rule-stop-ec2.arn
+    source_arn = aws_cloudwatch_event_rule.cwt-rule-stop-ec2.arn
+}
+
+## Sat-Sun
+
+resource "aws_cloudwatch_event_rule" "cws-rule-start-ec2" {
+    name = "cwSS-rule-start-ec2"
+    description = "Trigger Lambda function to start EC2 instances"
+	schedule_expression = "cron(00 22 ? * Sat,Sun *)"
+}
+resource "aws_cloudwatch_event_rule" "cws-rule-stop-ec2" {
+    name = "cwSS-rule-stop-ec2"
+    description = "Trigger Lambda function to stop EC2 instances"
+	schedule_expression = "cron(00 02 ? * Sat,Sun *)"
+}
+
+resource "aws_cloudwatch_event_target" "lambdas-start-ec2" {
+    arn = aws_lambda_function.lambda-start-stop-ec2.arn
+    rule = aws_cloudwatch_event_rule.cws-rule-start-ec2.name
+    input = <<JSON
+    {
+        "operation":"start"
+    }
+JSON
+}
+resource "aws_cloudwatch_event_target" "lambdas-stop-ec2" {
+    arn = aws_lambda_function.lambda-start-stop-ec2.arn
+    rule = aws_cloudwatch_event_rule.cws-rule-stop-ec2.name
+    input = <<JSON
+    {
+        "operation":"stop"
+    }
+JSON
+}
+resource "aws_lambda_permission" "starts-permission" {
+    action = "lambda:InvokeFunction"
+    function_name = aws_lambda_function.lambda-start-stop-ec2.arn
+    principal = "events.amazonaws.com"
+    source_arn = aws_cloudwatch_event_rule.cws-rule-start-ec2.arn
+}
+resource "aws_lambda_permission" "stops-permission" {
+    action = "lambda:InvokeFunction"
+    function_name = aws_lambda_function.lambda-start-stop-ec2.arn
+    principal = "events.amazonaws.com"
+    source_arn = aws_cloudwatch_event_rule.cws-rule-stop-ec2.arn
 }
