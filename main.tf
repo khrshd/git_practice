@@ -151,12 +151,12 @@ resource "aws_lambda_permission" "stop-permission" {
 resource "aws_cloudwatch_event_rule" "cws-rule-start-ec2" {
     name = "cwSS-rule-start-ec2"
     description = "Trigger Lambda function to start EC2 instances"
-	schedule_expression = "cron(00 22 ? * Sat,Sun *)"
+	schedule_expression = "cron(00 13 ? * Sat,Sun *)"
 }
 resource "aws_cloudwatch_event_rule" "cws-rule-stop-ec2" {
     name = "cwSS-rule-stop-ec2"
     description = "Trigger Lambda function to stop EC2 instances"
-	schedule_expression = "cron(00 02 ? * Sat,Sun *)"
+	schedule_expression = "cron(00 17 ? * Sat,Sun *)"
 }
 
 resource "aws_cloudwatch_event_target" "lambdas-start-ec2" {
